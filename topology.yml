@@ -1,0 +1,33 @@
+name: misconfigured-gateway-ctf
+
+topology:
+  nodes:
+    gateway:
+      kind: linux
+      image: frrouting/frr:latest
+      binds:
+        - ./startup_gateway.sh:/etc/frr/startup_gateway.sh
+      exec:
+        - /bin/bash /etc/frr/startup_gateway.sh
+
+    target-server:
+      kind: linux
+      image: nginx:latest
+      binds:
+        - ./flag.html:/usr/share/nginx/html/flag.html
+      exec:
+        - apt-get update && apt-get install -y iproute2
+        - ip addr add 172.20.20.2/24 dev eth0
+        - ip route add default via 172.20.20.1
+
+    attacker-client:
+      kind: linux
+      image: alpine/git
+      exec:
+        - apk add --no-cache iproute2 curl nmap
+        - ip addr add 172.20.10.2/24 dev eth0
+        - ip route add default via 172.20.10.1
+
+  links:
+    - endpoints: [gateway:eth0, attacker-client:eth0]
+    - endpoints: [gateway:eth1, target-server:eth0]
